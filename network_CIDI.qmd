@@ -1,0 +1,72 @@
+---
+title: "network_CIDI"
+embed-resources: true
+format: html
+editor: visual
+---
+
+```{r}
+#| echo: false
+library(haven)
+library(dplyr)
+library(qgraph)
+
+setwd("~/R_scripts")
+
+n.obs = 26828
+
+mixed.cor.all <- readRDS(file = paste("./2022_fitted_models_v3/mixed.cor.all.rds",sep=""))
+pearson.cor.all <- readRDS(file = paste("./2022_fitted_models_v3/pearson.cor.all.rds",sep=""))
+kendall.cor.all <- readRDS(file = paste("./2022_fitted_models_v3/kendall.cor.all.rds",sep=""))
+spearman.cor.all <- readRDS(file = paste("./2022_fitted_models_v3/spearman.cor.all.rds",sep=""))
+
+library(qgraph)
+
+n.vars = 26
+
+compute_EBIC <- function(est, rho, n, p, gamma = 0.5){
+  logL <- -n/2 * log(det(est)) - sum(diag(solve(est) %*% rho))
+  s <- sum(est[lower.tri(est)] != 0)
+  EBIC <- - 2 * logL + s * log(n) + 4 * s * gamma * log(p)
+  return(EBIC)
+}
+
+```
+
+```{r}
+#| echo: false
+pearson.EBICglasso <- EBICglasso(pearson.cor.all, n = n.obs, threshold=T)
+kendall.EBICglasso <- EBICglasso(kendall.cor.all, n = n.obs, threshold=T)
+spearman.EBICglasso <- EBICglasso(spearman.cor.all, n = n.obs, threshold=T)
+mixed.EBICglasso <- EBICglasso(mixed.cor.all + .75 * diag(n.vars), n = n.obs, , threshold=T)
+
+pearson.EBIC <- compute_EBIC(pearson.EBICglasso, pearson.cor.all, n.obs, n.vars)
+kendall.EBIC <- compute_EBIC(kendall.EBICglasso, kendall.cor.all, n.obs, n.vars)
+spearman.EBIC <- compute_EBIC(spearman.EBICglasso, spearman.cor.all, n.obs, n.vars)
+mixed.EBIC <- compute_EBIC(mixed.EBICglasso , mixed.cor.all , n.obs, n.vars)
+
+print("PEARSON")
+print(pearson.EBIC)
+qgraph(pearson.EBICglasso, layout="circle", labels = seq(n.vars), title = paste("Pearson Correlation, EBIC = ", as.character(-round(pearson.EBIC))))
+print("KENDALL")
+print(kendall.EBIC)
+qgraph(kendall.EBICglasso, layout="circle", labels = seq(n.vars), title = paste("Kendall's tau Correlation, EBIC = ", as.character(-round(kendall.EBIC))))
+print("SPEARMAN")
+print(spearman.EBIC)
+qgraph(spearman.EBICglasso, layout="circle", labels = seq(n.vars), title = paste("Spearman's rho Correlation, EBIC = ", as.character(-round(spearman.EBIC))))
+print("MIXED")
+print(mixed.EBIC)
+qgraph(mixed.EBICglasso, layout="circle", labels = seq(n.vars), title = paste("Mixed/Polychoric Correlation, EBIC = ", as.character(-round(mixed.EBIC))))
+
+
+```
+
+```{r}
+centralityPlot(list("Pearson" = pearson.EBICglasso, "Kendall" = kendall.EBICglasso, "Spearman" = spearman.EBICglasso, "Mixed" = mixed.EBICglasso), labels = seq(26), include = "all")
+
+```
+
+```{r}
+clusteringPlot(list("Pearson" = pearson.EBICglasso, "Kendall" = kendall.EBICglasso, "Spearman" = spearman.EBICglasso, "Mixed" = mixed.EBICglasso), labels = seq(26))
+
+```

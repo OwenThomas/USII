@@ -1,0 +1,346 @@
+---
+title: "cluster_combined_postprocess_v3"
+format: html
+embed-resources: true
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+#| echo: false
+
+knitr::opts_chunk$set(echo = TRUE)
+setwd("~/R_scripts")
+
+library(clustMD)
+library(mclust)
+library(haven)
+library(fpc)
+library(flexmix)
+library(clustMD)
+library(ggplot2)
+library(kableExtra)
+library(dplyr)
+```
+
+You can add options to executable code like this
+
+```{r}
+#| echo: false
+
+bigcolumnnames <- c("Age at first episode of depression", "Age at last episode of depression", "Ever had prolonged feelings of sadness or depression", "Ever had prolonged loss of interest in normal activities", "Depression possibly related to stressful or traumatic event", "Fraction of day affected during worst episode of depression", "Frequency of depressed days during worst episode of depression", "Brightening of mood in response to positive events during worst episode of depression", "Time of day that mood was worse during worst episode of depression", "Feelings of tiredness during worst episode of depression", "Feelings of heaviness in limbs during worst episode of depression", "Change in appetite during worst episode of depression", "Sleep changed during sadness/depression or loss of interest", "Trouble falling asleep", "Waking too early", "Sleeping too much", "Difficulty concentrating during worst depression", "Feelings of worthlessness during worst period of depression", "Feelings of guilt during worst period of depression", "Thoughts of death during worst depression", "Duration of worst depression", "Impact on normal roles during worst period of depression", "Difficult coping with rejection or negative responses", "Lifetime number of depressed periods", "Weight gain during worst period of depression", "Weight loss during worst period of depression")
+
+G_max <- 10
+
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
+
+```{r}
+#| echo: false
+
+get_mclust_metrics <- function(models, G_max){
+
+G_seq <- seq(G_max)
+BICs <- vector()
+ICLs <- vector()
+
+for(G_here in G_seq){
+  BICs <- c(BICs, -models[[G_here]]$BIC[1])
+  ICLs <- c(ICLs, -models[[G_here]]$icl)
+}
+
+return(data.frame(BICs,ICLs,model=rep("gaussian",G_max), G=G_seq))
+}
+
+get_mclust_models <- function(file_root,G_max){
+G_seq <- seq(G_max)
+mcbs <- list()
+for(G_here in G_seq){
+  mcb.G_here <- readRDS(file = paste(file_root,G_here,".rds",sep=""))
+  mcbs[[G_here]] <- mcb.G_here
+}
+return(mcbs)
+}
+
+print_max_mclust_clusters <- function(models, columnnames, G_max){
+  G_seq <- seq(G_max)
+
+for(G_here in G_seq){
+  for(G_sub in seq(G_here)){
+    print(paste("cluster ", G_sub, " of ", G_here, sep=""))
+    print(paste(table(models[[G_here]]$classification)[G_sub], " individuals out of ",sum(table(models[[G_here]]$classification)), sep=""))
+    print(columnnames[max.col(models[[G_here]]$parameters$mean)==G_sub])
+  }
+}
+
+}
+
+
+
+
+
+```
+
+```{r}
+#| echo: false
+
+print_max_fpc_clusters <- function(fr.model, columnnames, G_min, G_max, n_cont, n_disc){
+  for(G_model in seq(G_min,G_max)){
+    print(G_model)
+    component_maxes <- matrix(0,nrow=n_cont+n_disc, ncol = G_model)
+    
+    for(i in seq(length(fr.model$flexout[[G_model]]@size))){
+
+      for(j in seq(n_cont)){
+        component_maxes[j,i] <- fr.model$flexout[[G_model]]@components[[i]][[1]]@parameters$center[j]  #here is a probabilitiy of the continuous variable
+      }
+      for(j in seq(n_disc)){
+        component_maxes[j+n_cont,i] <- tail(fr.model$flexout[[G_model]]@components[[i]][[1]]@parameters$pp[[j]],1)  #here is a probabilitiy of the continuous variable
+      }
+    }
+    
+    if(length(fr.model$flexout[[G_model]]@size) != G_model){
+      print(paste("NB G_model =",G_model,"!= flexout size = ", length(fr.model$flexout[[G_model]]@size)))
+    }
+    
+    for(j in seq(length(fr.model$flexout[[G_model]]@size))){
+      print(paste(j, " of ", length(fr.model$flexout[[G_model]]@size)))
+      print(paste(table(fr.model$flexout[[G_model]]@cluster)[j], " individuals out of ",sum(table(fr.model$flexout[[G_model]]@cluster)), sep=""))
+      print(columnnames[max.col(component_maxes)==j])
+    }
+    
+  }
+  
+}
+
+get_fpc_metrics <- function(models, G_max){
+
+G_seq <- seq(G_max)
+BICs <- vector()
+ICLs <- vector()
+
+for(G_here in G_seq){
+  BICs[[G_here]] <- BIC(models$flexout[[G_here]]) 
+  ICLs[[G_here]] <- ICL(models$flexout[[G_here]]) 
+}
+
+return(data.frame(BICs,ICLs,model=rep("multinomial",G_max), G=G_seq))
+
+}
+
+```
+
+```{r}
+#| echo: false
+
+get_clustMD_models <- function(file_root, G_max){
+G_seq <- seq(G_max)
+mcbs <- list()
+for(G_here in G_seq){
+  mcb.G_here <- readRDS(file = paste(file_root,G_here,".rds",sep=""))
+  mcbs[[G_here]] <- mcb.G_here
+}
+return(mcbs)
+}
+
+get_clustMD_metrics <- function(mcbs, G_max){
+  G_seq <- seq(G_max)
+BICs <- vector()
+ICLs <- vector()
+for(G_here in G_seq){
+  BICs[[G_here]] <- -mcbs[[G_here]]$BIChat
+  ICLs[[G_here]] <- -mcbs[[G_here]]$ICLhat
+}
+return(data.frame(BICs,ICLs,model=rep("ordinal",G_max), G=G_seq))
+}
+
+print_max_clustMD_clusters<- function(mcbs, G_max, columnnames){
+  
+G_seq <- seq(G_max)
+cls <- list()
+
+for(G_here in G_seq){
+  cls <- c(cls, table(mcbs[[G_here]]$cl))
+  for(G_sub in seq(G_here)){
+    print(paste("cluster ", G_sub, " of ", G_here, sep=""))
+    print(paste(table(mcbs[[G_here]]$cl)[G_sub], " individuals out of ",sum(table(mcbs[[G_here]]$cl)), sep=""))
+    print(columnnames[max.col(mcbs[[G_here]]$means)==G_sub])
+  }
+}
+
+}
+  
+
+
+```
+
+```{r}
+#| echo: false
+
+plot_metrics_comparison_from_cluster <- function(data_metrics,G_max,metric_name,pop_name, log.scale=FALSE){
+    plot_title <- paste(metric_name,"for",pop_name,sep=" ")
+    if(log.scale){
+      plot_title <- paste("log scale",plot_title, sep= " ")
+    }
+
+    ggplot(data_metrics, aes_string(x = "G", y = metric_name)) +
+    geom_point(aes(colour = model)) +
+    theme_minimal() +
+    ggtitle(plot_title) + 
+    labs(x = "K") +
+    scale_x_continuous(breaks = seq(10)) +
+    if(log.scale)scale_y_continuous(transform = "log10") else NULL
+  
+}
+
+```
+
+```{r}
+#| echo: false
+
+analyse_by_pop <- function(pop_name, G_max,columnnames){
+  #print(paste("GAUSSIAN",pop_name, sep=" "))
+  pop_mclust_big_file_root <- paste("./2022_fitted_models_v3/mclust.",pop_name,".2022.",sep="")
+pop_mclust_models <- get_mclust_models(pop_mclust_big_file_root, G_max)
+pop_mclust_metrics <- get_mclust_metrics(pop_mclust_models,G_max)
+#print_max_mclust_clusters(pop_mclust_models,columnnames,G_max)
+  #print(paste("MULTINOMIAL",pop_name, sep=" "))
+  
+pop_fpc_big_file_root <- paste("./2022_fitted_models_v3/m.fpc.",pop_name,".2022.rds",sep="")
+fr.pop = readRDS(file = paste(pop_fpc_big_file_root,sep=""))
+pop_fpc_metrics <- get_fpc_metrics(fr.pop,G_max)
+#print_max_fpc_clusters(fr.pop,columnnames,1,G_max,2,23)
+ # print(paste("ORDINAL",pop_name, sep=" "))
+  
+pop_clustMD_big_file_root <- paste("./2022_fitted_models_v3/m.clustMD.",pop_name,".2022.",sep="")
+pop_clustMD_models <- get_clustMD_models(pop_clustMD_big_file_root, G_max)
+pop_clustMD_metrics <- get_clustMD_metrics(pop_clustMD_models,G_max)
+#print_max_clustMD_clusters(pop_clustMD_models, G_max, columnnames)
+
+pop_combined_metrics <- rbind(pop_mclust_metrics, pop_fpc_metrics, pop_clustMD_metrics)
+
+print(plot_metrics_comparison_from_cluster(pop_combined_metrics,G_max, "BICs", pop_name,log.scale=FALSE))
+print(plot_metrics_comparison_from_cluster(pop_combined_metrics,G_max, "BICs", pop_name,log.scale=TRUE))
+
+print(plot_metrics_comparison_from_cluster(pop_combined_metrics,G_max, "ICLs", pop_name,log.scale=FALSE))
+print(plot_metrics_comparison_from_cluster(pop_combined_metrics,G_max, "ICLs", pop_name,log.scale=TRUE))
+
+pop_combined_BICs <- pop_combined_metrics[,c(1,3,4)]
+pop_combined_ICLs <- pop_combined_metrics[,c(2,3,4)]
+
+pop_combined_BICs_wide <- reshape(pop_combined_BICs,idvar = "G", timevar = "model", direction="wide")
+pop_combined_ICLs_wide <- reshape(pop_combined_ICLs,idvar = "G", timevar = "model", direction="wide")
+
+print(kable(pop_combined_BICs_wide))
+print(kable(pop_combined_ICLs_wide))
+}
+
+
+```
+
+```{r}
+#| echo: false
+#| output: asis
+
+#analyse_by_pop("men", 10, bigcolumnnames)
+#analyse_by_pop("women", 10, bigcolumnnames)
+analyse_by_pop("all", 10, bigcolumnnames)
+```
+
+```{r}
+#| echo: false
+#| output: asis
+
+get_max_mclust_clusters <- function(model, columnnames, G_here,method_name){
+    assignment <- data.frame(variables=columnnames,assignment=max.col(model[[G_here]]$parameters$mean), method_name=method_name)
+
+  return(assignment)
+}
+
+get_max_clustMD_clusters<- function(mcbs, G_here, columnnames,method_name){
+    assignment <- data.frame(variables=columnnames,assignment=max.col(mcbs[[G_here]]$means), method_name=method_name)
+
+return(assignment)
+
+}
+ 
+get_max_fpc_clusters <- function(fr.model, columnnames, G_here, n_cont, n_disc, method_name){
+    component_maxes <- matrix(0,nrow=n_cont+n_disc, ncol = G_here)
+    E_likerts <- matrix(0,nrow=n_cont+n_disc, ncol = G_here)
+    continuous_medians <- matrix(0,nrow=n_cont+n_disc, ncol = G_here)
+    
+    for(i in seq(length(fr.model$flexout[[G_here]]@size))){
+
+      for(j in seq(n_cont)){
+        component_maxes[j,i] <- fr.model$flexout[[G_here]]@components[[i]][[1]]@parameters$center[j]  #here is a probabilitiy of the continuous variable
+        E_likerts[j,i] <- fr.model$flexout[[G_here]]@components[[i]][[1]]@parameters$center[j]  #here is a probabilitiy of the continuous variable
+      }
+      for(j in seq(n_disc)){
+        component_maxes[j+n_cont,i] <- tail(fr.model$flexout[[G_here]]@components[[i]][[1]]@parameters$pp[[j]],1)  #here is a probabilitiy of the continuous variable
+        E_likerts[j+n_cont,i] <- mean(fr.all$flexout[[G_here]]@components[[i]][[1]]@parameters$pp[[j]] * seq(4))
+        cumsumprobs <- cumsum(fr.all$flexout[[G_here]]@components[[i]][[1]]@parameters$pp[[j]])
+        medianinteger <- min(which(cumsumprobs>.5))
+        medianfraction <- cumsumprobs[medianinteger] - .5
+        continuous_medians[j+n_cont,i] <- medianinteger + medianfraction
+      }
+    }
+    
+    assignment <- data.frame(variables=columnnames,assignment=max.col(component_maxes), method_name=method_name)
+
+  
+}
+
+match_max_factors <- function(list_max_factor, G_max){
+  resultstable <- data.frame(variables = list_max_factor[[1]]$variables)
+  for (j in seq(G_max)){
+    resultstable[,as.character(j)] <- ""
+  }
+  
+  for(mfa in list_max_factor){
+    for(j in seq(dim(mfa)[1])){
+      resultstable[j,mfa[j,]$assignment+1] <- paste(resultstable[j,mfa[j,]$assignment + 1], mfa[j,]$method_name,sep="")
+    }
+  }
+  
+  return(resultstable)
+}
+
+
+pop_clustMD_models <- get_clustMD_models("./2022_fitted_models_v3/m.clustMD.all.2022.", G_max)
+pop_mclust_models <- get_mclust_models("./2022_fitted_models_v3/mclust.all.2022.", G_max)
+fr.all = readRDS(file = paste("./2022_fitted_models_v3/m.fpc.all.2022.rds",sep=""))
+
+G_here <- 2
+O_assignment <- get_max_clustMD_clusters(pop_clustMD_models,G_here, bigcolumnnames,"O")
+G_assignment <- get_max_mclust_clusters(pop_mclust_models,bigcolumnnames,G_here,"G")
+M_assignment <- get_max_fpc_clusters(fr.all,bigcolumnnames,G_here,2,24,"M")
+
+O_assignment$assignment <- case_match(O_assignment$assignment, 1 ~ 2, 2 ~ 1)
+
+model_list = list(O_assignment, G_assignment, M_assignment)
+table_2 <- match_max_factors(model_list, G_here)
+print(kable(table_2))
+
+G_here <- 3
+O_assignment <- get_max_clustMD_clusters(pop_clustMD_models,G_here, bigcolumnnames,"O")
+G_assignment <- get_max_mclust_clusters(pop_mclust_models,bigcolumnnames,G_here,"G")
+M_assignment <- get_max_fpc_clusters(fr.all,bigcolumnnames,G_here,2,24,"M")
+
+M_assignment$assignment <- case_match(M_assignment$assignment, 1 ~ 3, 2 ~ 1, 3~2)
+G_assignment$assignment <- case_match(G_assignment$assignment, 2 ~ 1, 3 ~ 2, 1~3)
+O_assignment$assignment <- case_match(O_assignment$assignment, 1 ~ 1, 2 ~ 3, 3~2)
+
+model_list = list(O_assignment, G_assignment, M_assignment)
+table_3 <- match_max_factors(model_list, G_here)
+print(kable(table_3))
+
+
+```

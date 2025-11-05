@@ -1,0 +1,263 @@
+---
+title: "fa_phq9_models"
+format: html
+embed-resources: true
+editor: visual
+---
+
+## Quarto
+
+```{r}
+#| echo: FALSE
+#| output: asis
+library(haven)
+library(ggplot2)
+library(knitr)
+library(dplyr)
+setwd("~/R_scripts")
+
+bd_raw <- read.table("/ess/p2756/data/durable/original-files/data-download/ukb675054.tab", header=TRUE, sep="\t")
+
+PHQ9.indices <- c("f.20514.0.0","f.20510.0.0","f.20517.0.0","f.20519.0.0","f.20511.0.0","f.20507.0.0", "f.20508.0.0","f.20518.0.0", "f.20513.0.0")
+
+bd_PHQ9 <- bd_raw[,PHQ9.indices]
+phq9columnnames <- c("Little interest or pleasure in doing things", "Feeling down, depressed or hopeless", "Trouble falling or staying asleep, or sleeping too much", "Feeling tired or having little energy", "Poor appetite or overeating", "Feeling bad about yourself... or that you are a failure or have let yourself or your family down", "Trouble concentrating on things, such as reading the newspaper or watching television", "Moving or speaking so slowly that other people could have noticed. Or the opposite - being so fidgety or restless that you have been moving around a lot more than usual", "Thoughts that you would be better off dead, or hurting yourself")
+
+method_names = c("mixed", "pearson", "kendall", "spearman")
+
+data_summaries <- data.frame(variable=character(), one = character(), two = character(), three = character(), four = character())
+
+for (i in seq(1,9)) {
+  #print(phq9columnnames[i])
+  bd_PHQ9[which(bd_PHQ9[,i]<0),i] <- NA
+  #print(table(bd_PHQ9[,i]))
+  data_summaries[i,] = c(phq9columnnames[i],table(bd_PHQ9[,i]))
+}
+
+print(kable(data_summaries))
+bd_PHQ9 <- bd_PHQ9[complete.cases(bd_PHQ9),]
+
+n.obs <- dim(bd_PHQ9)[1]
+
+library(psych)
+
+G_max <- 5
+G_seq <- seq(G_max)
+
+
+```
+
+```{r}
+#| echo: FALSE
+
+print_max_factors <- function(fa.model, columnnames, G_model){
+
+    for(j in seq(G_model)){
+      print(paste(j, " of ", G_model))
+      maxcolumnnames_j <- columnnames[max.col(abs(fa.model$weights))==j]
+      maxcolumnsigns_j <- sign(fa.model$weights[,j])[max.col(abs(fa.model$weights))==j]
+      maxcolumnvalues_j <- fa.model$weights[,j][max.col(abs(fa.model$weights))==j]
+
+     # print(maxcolumnnames_j)
+    #  print(maxcolumnsigns_j)
+      
+      print(t(rbind(maxcolumnnames_j, t(maxcolumnsigns_j), t(signif(maxcolumnvalues_j,4)))))
+    }
+    
+}
+
+plot_BIC_from_fa <- function(model, G_min, G_max){
+  vec.BIC <- vector()
+  for(i in seq(G_min,G_max)){
+    vec.BIC <- append(vec.BIC,model[[i]]$BIC)
+  }
+  
+  plot(seq(G_min,G_max),vec.BIC)
+  plot(seq(G_min,G_max - 1),diff(vec.BIC,differences = 1))
+  plot(seq(G_min,G_max - 2),diff(vec.BIC,differences = 2))
+  
+}
+
+plot_BIC_from_fa_list <- function(model_list, G_min, G_max){
+  plot.data <- data.frame(metric = double(), G = integer(), method = character())
+  method_names = c("mixed", "pearson", "kendall", "spearman")
+  n <- length(model_list)
+  for(j in seq(n)){
+      vec.BIC <- vector()
+  for(i in seq(G_min,G_max)){
+    vec.BIC <- append(vec.BIC,model[[i]]$BIC)
+  }
+      
+  plot.data <- rbind(plot.data, data.frame(vec.BIC, seq(G_min, G_max), rep(method_names[[j]], G_max-G_min)))
+  
+  }
+  
+  plot(seq(G_min,G_max),vec.BIC)
+  plot(seq(G_min,G_max - 1),diff(vec.BIC,differences = 1))
+  plot(seq(G_min,G_max - 2),diff(vec.BIC,differences = 2))
+  
+}
+
+```
+
+```{r}
+#| echo: FALSE
+
+mixed.cor.all <- readRDS(file = paste("./PHQ9_fitted_models/mixed.cor.all.rds",sep=""))
+
+pearson.cor.all <- readRDS(file = paste("./PHQ9_fitted_models/pearson.cor.all.rds",sep=""))
+
+kendall.cor.all <- readRDS(file = paste("./PHQ9_fitted_models/kendall.cor.all.rds",sep=""))
+
+spearman.cor.all <- readRDS(file = paste("./PHQ9_fitted_models/spearman.cor.all.rds",sep=""))
+print("mixed")
+heatmap(mixed.cor.all, Rowv = NA, Colv = NA)
+print("pearson")
+heatmap(pearson.cor.all, Rowv = NA, Colv = NA)
+print("kendall")
+heatmap(kendall.cor.all, Rowv = NA, Colv = NA)
+print("spearman")
+heatmap(spearman.cor.all, Rowv = NA, Colv = NA)
+
+
+```
+
+```{r}
+#| echo: FALSE
+
+all.mixed.list <- readRDS(file = "./PHQ9_fitted_models/m.fa.all.PHQ9.mixed.list.rds")
+all.pearson.list <- readRDS(file = "./PHQ9_fitted_models/m.fa.all.PHQ9.pearson.list.rds")
+all.kendall.list <- readRDS(file = "./PHQ9_fitted_models/m.fa.all.PHQ9.kendall.list.rds")
+all.spearman.list <- readRDS(file = "./PHQ9_fitted_models/m.fa.all.PHQ9.spearman.list.rds")
+
+```
+
+```{r}
+#| echo: FALSE
+
+list.all.lists <- list(all.mixed.list, all.pearson.list, all.kendall.list, all.spearman.list)
+
+list.all.cors <- list(mixed.cor.all, pearson.cor.all, kendall.cor.all, spearman.cor.all)
+
+```
+
+```{r}
+#| echo: FALSE
+
+plot_metrics_comparison_from_fa <- function(list.of.lists,G_max,metric_name,pop_name, log.metric=TRUE){
+
+  plot.data <- data.frame(metric = double(), G = integer(), method = character())
+  method_names = c("mixed", "pearson", "kendall", "spearman")
+
+  for(j in seq(4)){
+      vec.metric <- vector()
+  for(i in seq(G_max)){
+    if(metric_name=="RMSEA"){
+          vec.metric <- append(vec.metric,list.of.lists[[j]][[i]][[metric_name]][1])
+    } else if(metric_name=="CFI"){
+          vec.metric <- append(vec.metric,1 - max(0,list.of.lists[[j]][[i]][[metric_name]]))
+    } else {
+          vec.metric <- append(vec.metric,list.of.lists[[j]][[i]][[metric_name]])
+    }
+  }
+   if(log.metric){
+     #vec.metric=log(vec.metric)
+   } 
+  plot.data <- rbind(plot.data, data.frame(metric = vec.metric, G = seq(G_max), method = rep(method_names[[j]], G_max)))
+  
+  }
+
+    plot_title <- paste(metric_name,"for",pop_name,sep=" ")
+    if(log.metric){
+      plot_title <- paste("log scale",plot_title, sep= " ")
+    }
+    ggplot(plot.data, aes(x = G, y = metric)) +
+    geom_point(aes(colour = method)) +
+    theme_minimal() +
+    ggtitle(plot_title) + 
+    labs(x = "K") + 
+    scale_x_continuous(breaks = seq(G_max)) +
+    {if(log.metric)scale_y_continuous(transform = "log10")}
+  
+}
+```
+
+```{r}
+#| echo: FALSE
+
+#metric_names = c("RMSEA", "rms", "BIC", "EBIC", "CFI")
+metric_names = c("STATISTIC", "RMSEA", "rms", "BIC", "EBIC", "CFI")
+pop_names = c("all")
+for(metric_name in metric_names){
+    print(plot_metrics_comparison_from_fa(list.all.lists,G_max,metric_name, "all",log.metric=FALSE))
+    print(plot_metrics_comparison_from_fa(list.all.lists,G_max,metric_name, "all",log.metric=TRUE))
+}
+
+```
+
+```{r}
+#| echo: FALSE
+print("mixed")
+for(j in seq(4)){
+  print(method_names[j])
+scree(list.all.cors[[j]])
+}
+
+```
+
+```{r}
+#| echo: FALSE
+#| eval: FALSE
+
+  for(j in seq(4)){
+    for(G_here in G_seq){
+      print(paste("all",method_names[j],sep=" "))
+      print_max_factors(list.all.lists[[j]][[G_here]],phq9columnnames,G_here)
+    }
+  }
+
+```
+
+```{r}
+#| echo: FALSE
+#| output: asis
+get_max_factors <- function(fa.model, columnnames, G_model, method_name){
+  
+    assignment <- data.frame(variables=columnnames,assignment=max.col(abs(fa.model$weights)), method_name=method_name)
+    return(assignment)
+}
+
+match_max_factors <- function(list_max_factor, G_max){
+  resultstable <- data.frame(variables = list_max_factor[[1]]$variables)
+  for (j in seq(G_max)){
+    resultstable[,as.character(j)] <- ""
+  }
+  
+  for(mfa in list_max_factor){
+    for(j in seq(dim(mfa)[1])){
+      resultstable[j,mfa[j,]$assignment+1] <- paste(resultstable[j,mfa[j,]$assignment + 1], mfa[j,]$method_name,sep="")
+    }
+  }
+  
+  return(resultstable)
+}
+method_codes <- c("M", "P", "K", "S")
+for (G_here in G_seq){
+  list_max_factors <- list()
+for(j in seq(4)){
+  list_max_factors[[j]] <- get_max_factors(list.all.lists[[j]][[G_here]],phq9columnnames,G_here, method_codes[j])
+}
+
+  if(G_here==4){
+    list_max_factors[[1]]$assignment <- case_match(list_max_factors[[1]]$assignment, 1 ~ 2, 2 ~ 1, 3 ~ 4, 4 ~ 3)
+  }
+  if(G_here==5){
+    list_max_factors[[1]]$assignment <- case_match(list_max_factors[[1]]$assignment, 1 ~ 1, 2 ~ 5, 3 ~ 3, 4 ~ 4, 5 ~ 2)
+  }
+
+resultstable <- match_max_factors(list_max_factors, G_here)
+print(kable(resultstable))
+}
+
+
+```
