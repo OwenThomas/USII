@@ -5,7 +5,7 @@ embed-resources: true
 editor: visual
 ---
 
-## Quarto
+## 
 
 ```{r}
 #| echo: false
@@ -23,8 +23,6 @@ library(ggplot2)
 library(kableExtra)
 library(dplyr)
 ```
-
-You can add options to executable code like this
 
 ```{r}
 #| echo: false

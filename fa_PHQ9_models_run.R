@@ -1,17 +1,6 @@
 setwd("~/R_scripts")
 
-bd_raw <- read.table("/ess/p2756/data/durable/original-files/data-download/ukb675054.tab", header=TRUE, sep="\t")
-
-PHQ9.indices <- c("f.20514.0.0","f.20510.0.0","f.20517.0.0","f.20519.0.0","f.20511.0.0","f.20507.0.0", "f.20508.0.0","f.20518.0.0", "f.20513.0.0")
-
-bd_PHQ9 <- bd_raw[,PHQ9.indices]
-
-for (i in seq(1,9)) {
-  bd_PHQ9[which(bd_PHQ9[,i]<0),i] <- NA
-  print(table(bd_PHQ9[,i]))
-}
-
-bd_PHQ9 <- bd_PHQ9[complete.cases(bd_PHQ9),]
+bd_PHQ9 = readRDS("./synthetic_cidi.rds")
 
 n.obs <- dim(bd_PHQ9)[1]
 
@@ -27,14 +16,6 @@ saveRDS(mixed.cor.all, file = paste("./PHQ9_fitted_models/mixed.cor.all.rds",sep
 saveRDS(pearson.cor.all, file = paste("./PHQ9_fitted_models/pearson.cor.all.rds",sep=""))
 saveRDS(kendall.cor.all, file = paste("./PHQ9_fitted_models/kendall.cor.all.rds",sep=""))
 saveRDS(spearman.cor.all, file = paste("./PHQ9_fitted_models/spearman.cor.all.rds",sep=""))
-
-
-mixed.cor.all <- readRDS(file = "./PHQ9_fitted_models/mixed.cor.all.rds")
-pearson.cor.all <- readRDS(file = "./PHQ9_fitted_models/pearson.cor.all.rds")
-kendall.cor.all <- readRDS(file = "./PHQ9_fitted_models/kendall.cor.all.rds")
-spearman.cor.all <- readRDS(file = "./PHQ9_fitted_models/spearman.cor.all.rds")
-
-library(psych)
 
 G_max <- 10
 G_seq <- seq(G_max)

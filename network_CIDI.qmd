@@ -11,8 +11,6 @@ library(haven)
 library(dplyr)
 library(qgraph)
 
-setwd("~/R_scripts")
-
 n.obs = 26828
 
 mixed.cor.all <- readRDS(file = paste("./2022_fitted_models_v3/mixed.cor.all.rds",sep=""))

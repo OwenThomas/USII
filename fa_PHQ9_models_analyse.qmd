@@ -14,9 +14,8 @@ library(haven)
 library(ggplot2)
 library(knitr)
 library(dplyr)
-setwd("~/R_scripts")
 
-bd_raw <- read.table("/ess/p2756/data/durable/original-files/data-download/ukb675054.tab", header=TRUE, sep="\t")
+bd_PHQ9 = readRDS("./synthetic_cidi.rds")
 
 PHQ9.indices <- c("f.20514.0.0","f.20510.0.0","f.20517.0.0","f.20519.0.0","f.20511.0.0","f.20507.0.0", "f.20508.0.0","f.20518.0.0", "f.20513.0.0")
 

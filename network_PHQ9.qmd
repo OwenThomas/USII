@@ -11,8 +11,6 @@ library(haven)
 library(dplyr)
 library(qgraph)
 
-setwd("~/R_scripts")
-
 
 n.obs <- 154302
 n.vars <- 9
